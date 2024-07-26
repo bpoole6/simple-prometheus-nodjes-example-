@@ -5,7 +5,7 @@ const prom = require('prom-client');
 const packageInfo = require('./package.json');
 
 const collectDefaultMetrics = prom.collectDefaultMetrics;
-PORT = process.env.PORT
+PORT = process.env.PORT || 8080
 // collectDefaultMetrics({  }); // ********************************** Uncomment this line for some default metrics. That aren't distracting
 prom.register.setDefaultLabels({'application': packageInfo['name']})
 app.use(bodyParser.urlencoded({extended: true}));
