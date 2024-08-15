@@ -6,6 +6,7 @@ services:
       - "8080:8080"
     environment:
       PORT: 8080
+      DNS_NAME: test-web-app #the dns name of the container.
     networks:
       - some-net
 
@@ -21,6 +22,9 @@ services:
       - prometheus:/etc/prometheus
     networks:
       - some-net
+    depends_on:
+      web:
+        condition: service_started
 volumes:
   prometheus:
     driver: local

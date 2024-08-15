@@ -3,50 +3,73 @@ const bodyParser = require('body-parser');
 const app = express();
 const prom = require('prom-client');
 const packageInfo = require('./package.json');
+const {Counter, Gauge} = require("prom-client");
 
-const collectDefaultMetrics = prom.collectDefaultMetrics;
+
+class ServiceDiscovery {
+    constructor(targets, metricPath) {
+        this.targets = targets
+        this.labels = {"__meta_metrics_path": metricPath}
+    }
+}
+
+function registerRegistry(registryName) {
+    const registry = new prom.Registry()
+    registry.setDefaultLabels({'registry_name': registryName})
+
+    const exampleCounter = new Counter({
+        name: 'example_counter',
+        help: 'Just an example Counter',
+        labelNames: [],
+        registers: [registry]
+    })
+    exampleCounter.inc(Math.random() * (20))
+
+    const exampleGauge = new Gauge({
+        name: 'example_gauge',
+        help: 'Just an example Gauge',
+        registers: [registry]
+    })
+    exampleGauge.set(Math.random() * (540))
+
+    return registry
+}
+
+
 PORT = process.env.PORT || 8080
-// collectDefaultMetrics({  }); // ********************************** Uncomment this line for some default metrics. That aren't distracting
-prom.register.setDefaultLabels({'application': packageInfo['name']})
+DNS_NAME = process.env.DNS_NAME || "localhost"
+
+const registry1 = registerRegistry("first")
+const registry2 = registerRegistry("second")
+const registries = {
+    "registry1": registry1,
+    "registry2": registry2
+}
 app.use(bodyParser.urlencoded({extended: true}));
 app.set('view engine', 'ejs');
 
-const apiRequests = new prom.Counter({
-  name: 'api_requests_total',
-  help: 'Just a counter for api_requests',
-  labelNames: ['endpoint','code']
-})
+app.get('/metrics/:registryName', async (req, res) => {
+    res.setHeader('Content-Type', prom.register.contentType);
+    if (req.params.registryName in registries) {
+        registry = registries[req.params.registryName]
+        res.status(200).send(registry.metrics());
+    } else {
+        res.status(404).send("what???")
+    }
 
-const dataSourceConnection = new prom.Gauge({
-  name: 'datasource_connections',
-  help: 'Number of connections to a datasource. What\'s the dataSource you wonder? Take your pick.'
-})
-
-app.get('/metrics', async (req, res) => {
-
-  res.setHeader('Content-Type', prom.register.contentType);
-  res.send(await prom.register.metrics());
+});
+app.get('/service-discovery', async (req, res) => {
+    res.setHeader('Content-Type', "application/json");
+    const list = []
+    for (let key in registries) {
+        list.push(new ServiceDiscovery([DNS_NAME + ":" + PORT], "/metrics/" + key))
+    }
+    res.send(list);
 });
 
 
 app.listen(PORT, () => {
-  console.log("Testing app listening on port " + PORT)
-  console.log("Please see http://localhost:" + PORT +"/metrics")
+    console.log("Testing app listening on port " + PORT)
+    console.log("Please see http://localhost:" + PORT + "/metrics")
 })
 
-setInterval(function () {
-  const ran = Math.random()
-  if (ran <= .2) {
-    apiRequests.labels("/login","401").inc() // No need to create a
-  } else {
-    apiRequests.labels("/login","200").inc()
-  }
-
-  dataSourceConnection.set(getRandomInt(5,10))
-}, 300);
-
-function getRandomInt(min, max) {
-  const minCeiled = Math.ceil(min);
-  const maxFloored = Math.floor(max);
-  return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
-}

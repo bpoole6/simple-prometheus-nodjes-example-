@@ -19,11 +19,10 @@ rule_files:
 # A scrape configuration containing exactly one endpoint to scrape:
 # Here it's Prometheus itself.
 scrape_configs:
-  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
-  - job_name: "web-app"
-
-    # metrics_path defaults to '/metrics'
-    # scheme defaults to 'http'.
+  - job_name: "metrics-accumulator"
     scrape_interval: 5s
-    static_configs:
-      - targets: ["test-web-app:8080"]
+    relabel_configs:
+      - source_labels: [ "__meta_metrics_path" ]
+        target_label: "__metrics_path__"
+    http_sd_configs:
+      - url: "http://test-web-app:8080/service-discovery"
