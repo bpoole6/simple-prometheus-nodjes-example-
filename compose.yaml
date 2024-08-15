@@ -9,6 +9,10 @@ services:
       DNS_NAME: test-web-app #the dns name of the container.
     networks:
       - some-net
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test: curl http://localhost:8080/service-discovery
 
   prometheus:
     container_name: prometheus-server
@@ -24,7 +28,7 @@ services:
       - some-net
     depends_on:
       web:
-        condition: service_started
+        condition: service_healthy
 volumes:
   prometheus:
     driver: local

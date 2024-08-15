@@ -12,3 +12,5 @@ To start the process run
 - docker compose up
 - navigate to http://localhost:8080 for the web app
 - navigate to http://localhost:9090 for prometheus
+
+
